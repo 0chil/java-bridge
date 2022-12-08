@@ -1,16 +1,14 @@
 package bridge.controller;
 
-import static bridge.constant.GameCommand.EXIT;
-import static bridge.constant.GameCommand.RETRY;
-
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
+import bridge.BridgeMaker;
+import bridge.BridgeRandomNumberGenerator;
 import bridge.constant.Direction;
 import bridge.constant.GameCommand;
 import bridge.domain.BridgeGame;
-import bridge.BridgeMaker;
-import bridge.BridgeRandomNumberGenerator;
 import bridge.dto.TrialResult;
 import bridge.view.InputView;
 import bridge.view.OutputView;
@@ -26,23 +24,21 @@ public class Controller {
         OUTPUT_VIEW.printResult(trialResults, game.getTrialCount(), game.isFinished());
     }
 
-    private BridgeGame makeGame() {
-        try {
-            BridgeMaker bridgeMaker = new BridgeMaker(new BridgeRandomNumberGenerator());
-            List<String> bridge = bridgeMaker.makeBridge(INPUT_VIEW.readBridgeSize());
-            return BridgeGame.from(bridge);
-        } catch (IllegalArgumentException exception) {
-            OUTPUT_VIEW.printException(exception.getMessage());
-            return makeGame();
-        }
+    public BridgeGame makeGame() {
+        return repeat(() -> BridgeGame.from(makeBridge()));
+    }
+
+    private List<String> makeBridge() {
+        BridgeMaker bridgeMaker = new BridgeMaker(new BridgeRandomNumberGenerator());
+        return bridgeMaker.makeBridge(INPUT_VIEW.readBridgeSize());
     }
 
     private void doGame(final BridgeGame game) {
         while (!game.isFinished()) {
-            if (move(game)) {
+            if (move(game).wasSuccessful()) {
                 continue;
             }
-            if (retryOrExit(game) == EXIT) {
+            if (retryOrExit(game).isExit()) {
                 break;
             }
         }
@@ -50,37 +46,37 @@ public class Controller {
 
     private GameCommand retryOrExit(final BridgeGame game) {
         GameCommand command = askCommand();
-        if (command.equals(RETRY)) {
+        if (command.isRetry()) {
             game.retry();
             trialResults.clear();
         }
         return command;
     }
 
-    private boolean move(final BridgeGame game) {
+    private TrialResult move(final BridgeGame game) {
         Direction direction = askDirection();
         boolean moved = game.move(direction);
+        TrialResult trialResult = new TrialResult(direction, moved);
 
-        trialResults.add(new TrialResult(direction, moved));
+        trialResults.add(trialResult);
         OUTPUT_VIEW.printMap(trialResults);
-        return moved;
+        return trialResult;
     }
 
     private Direction askDirection() {
-        try {
-            return INPUT_VIEW.readDirection();
-        } catch (IllegalArgumentException exception) {
-            OUTPUT_VIEW.printException(exception.getMessage());
-            return askDirection();
-        }
+        return repeat(INPUT_VIEW::readDirection);
     }
 
     private GameCommand askCommand() {
+        return repeat(INPUT_VIEW::readGameCommand);
+    }
+
+    private <T> T repeat(Supplier<T> inputSupplier) {
         try {
-            return INPUT_VIEW.readGameCommand();
-        } catch (IllegalArgumentException exception) {
-            OUTPUT_VIEW.printException(exception.getMessage());
-            return askCommand();
+            return inputSupplier.get();
+        } catch (IllegalArgumentException e) {
+            OUTPUT_VIEW.printException(e.getMessage());
+            return repeat(inputSupplier);
         }
     }
 }
