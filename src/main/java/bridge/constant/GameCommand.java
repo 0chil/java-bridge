@@ -23,6 +23,14 @@ public enum GameCommand {
         return character.equals(command);
     }
 
+    public boolean isRetry() {
+        return this.equals(RETRY);
+    }
+
+    public boolean isExit() {
+        return this.equals(EXIT);
+    }
+
     public String getCharacter() {
         return character;
     }
