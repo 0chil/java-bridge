@@ -14,12 +14,12 @@ public enum GameCommand {
 
     public static GameCommand from(String command) {
         return Arrays.stream(values())
-                .filter(gameCommand -> gameCommand.isSameCharacterWith(command))
+                .filter(gameCommand -> gameCommand.hasSameCharacterWith(command))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("잘못된 명령입니다"));
     }
 
-    private boolean isSameCharacterWith(String command) {
+    private boolean hasSameCharacterWith(String command) {
         return character.equals(command);
     }
 
